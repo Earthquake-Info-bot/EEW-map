@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EEW Map Viewer</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
+  <style>
+    html, body { margin:0; padding:0; height:100%; }
+    #map { width:100%; height:100%; }
+  </style>
+</head>
+<body>
+<div id="map"></div>
+<div id="infoBox" style="
+  position:absolute;
+  top:10px;
+  left:10px;
+  padding:10px;
+  background:rgba(255, 255, 255, 0.9);
+  font-family:'Yu Gothic','Meiryo',sans-serif;
+  z-index:1000;
+  line-height:1.1;
+  white-space:nowrap;   /* 横幅をテキストに合わせる */
+  display:inline-block; /* 自動幅にする */
+  font-size:18px;
+">読み込み中...</div>
+<div id="trainingBox" style="
+  position:absolute;
+  top:155px;
+  right:10px;
+  padding:14px 5px;
+  background:null;
+  color:#fff;
+  font-weight:bold;
+  font-family:'Yu Gothic','Meiryo',sans-serif;
+  z-index:1000;
+  font-size:50px;
+  line-height:0.5;
+  text-align: center;
+"></div>
+<div id="tsunamiBox" style="
+  position:absolute;
+  top:50px;
+  right:10px;
+  padding:5px 5px;
+  background: #0b6e2f;  /* 濃い緑 */
+  color: #ffffff;      /* 白文字 */
+  font-family:'Yu Gothic','Meiryo',sans-serif;
+  z-index:1000;
+  display:none;
+  text-align:center;
+  line-height:1.1;
+  width:260px;
+"></div>
+<div id="clock" style="
+  position:absolute;
+  top:10px;
+  right:10px;
+  padding:5px 5px;
+  background:rgba(0,0,0,0.5);
+  color:#80f0ff;
+  font-family: 'Courier New', Courier, monospace; /* 等幅優先 */
+  font-size:22px;
+  font-style:normal;
+  text-shadow: 0 0 2px #80e0ff; /* 光は弱く */
+  z-index:1000;
+  border-radius:5px;
+  min-width:140px;
+  text-align:center;
+  width:260px
+"></div>
+<div id="warnArea" style="
+  position:absolute;
+  bottom:10px;
+  left:10px;
+  padding:5px 10px;
+  background: #4160e1;
+  color: #ffffff;
+  font-family:'Yu Gothic','Meiryo',sans-serif;
+  font-size:30px;
+  z-index:1000;
+  display:none;
+  text-align:left;
+  line-height:1.1;
+  width:1135px;
+  height:100px;
+  font-weight:bold;
+"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map = L.map("map").setView([36.0, 138.0], 5);
+L.tileLayer(
+  "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+  { attribution: '&copy; OpenStreetMap contributors &copy; CARTO', maxZoom:8 }
+).addTo(map);
+
+//テストかどうかをここに入力！！！！！！！！！↓↓↓↓↓true or false
+let EEW_JSON_URL = "";  const isTest = true;
+
+if (isTest) {
+  EEW_JSON_URL = "https://script.google.com/macros/s/AKfycbzgP8R7vowRFrefHbUIkAcGt4NFjJZcuVnnpVqIjpprlCA44PtTk7ffHs-f4HP8Yk8A/exec";
+} else {
+  EEW_JSON_URL = "https://api.wolfx.jp/jma_eew.json";
+}
+
+const P_SPEED = 6.0; // km/s
+const S_SPEED = 3.5; // km/s
+const FETCH_INTERVAL = 2000; // ms
+const ANIM_INTERVAL = 500;  // ms
+const P_STEP = P_SPEED * ANIM_INTERVAL/1000 * 1000; // m
+const S_STEP = S_SPEED * ANIM_INTERVAL/1000 * 1000; // m
+const tsunamiBox = document.getElementById("tsunamiBox");
+
+let pCircle = null, sCircle = null;
+let sCR = null;
+let originTime = null;
+let lat=0, lon=0, depth=0;
+let isFirstView = true;
+let markerTimer = null;
+let pCount = "-100"; let sCount = "-100";
+let countLabel = null;
+let marker = null;
+let eventID = null;
+let bg = ""; let tc = "000";
+let t = null;
+let tsunamiChuui = false;
+let lastWarnArea = [];
+// Canvasレンダラー（1回だけ作る）
+const canvasRenderer = L.canvas({ padding: 0.5 });
+// GeoJSONキャッシュ
+const geoCache = {};       // { code: geojsonデータ }
+const geoLayerCache = {};  // { code: L.geoJSONレイヤー }
+
+const areaCode = {"石狩地方北部":"100","石狩地方中部":"101","石狩地方南部":"102","渡島地方北部":"105","渡島地方東部":"106","渡島地方西部":"107","檜山地方":"110","後志地方北部":"115","後志地方東部":"116","後志地方西部":"117","北海道奥尻島":"119","空知地方北部":"120","空知地方中部":"121","空知地方南部":"122","上川地方北部":"125","上川地方中部":"126","上川地方南部":"127","留萌地方中北部":"130","留萌地方南部":"131","宗谷地方北部":"135","宗谷地方南部":"136","北海道利尻礼文":"139","網走地方":"140","北見地方":"141","紋別地方":"142","胆振地方西部":"145","胆振地方中東部":"146","日高地方西部":"150","日高地方中部":"151","日高地方東部":"152","十勝地方北部":"155","十勝地方中部":"156","十勝地方南部":"157","釧路地方北部":"160","釧路地方中南部":"161","根室地方北部":"165","根室地方中部":"166","根室地方南部":"167","青森県津軽北部":"200","青森県津軽南部":"201","青森県三八上北":"202","青森県下北":"203","岩手県沿岸北部":"210","岩手県沿岸南部":"211","岩手県内陸北部":"212","岩手県内陸南部":"213","宮城県北部":"220","宮城県南部":"221","宮城県中部":"222","秋田県沿岸北部":"230","秋田県沿岸南部":"231","秋田県内陸北部":"232","秋田県内陸南部":"233","山形県庄内":"240","山形県最上":"241","山形県村山":"242","山形県置賜":"243","福島県中通り":"250","福島県浜通り":"251","福島県会津":"252","茨城県北部":"300","茨城県南部":"301","栃木県北部":"310","栃木県南部":"311","群馬県北部":"320","群馬県南部":"321","埼玉県北部":"330","埼玉県南部":"331","埼玉県秩父":"332","千葉県北東部":"340","千葉県北西部":"341","千葉県南部":"342","東京都２３区":"350","東京都多摩東部":"351","東京都多摩西部":"352","神津島":"354","伊豆大島":"355","新島":"356","三宅島":"357","八丈島":"358","小笠原":"359","神奈川県東部":"360","神奈川県西部":"361","新潟県上越":"370","新潟県中越":"371","新潟県下越":"372","新潟県佐渡":"375","富山県東部":"380","富山県西部":"381","石川県能登":"390","石川県加賀":"391","福井県嶺北":"400","福井県嶺南":"401","山梨県中・西部":"411","山梨県東部・富士五湖":"412","長野県北部":"420","長野県中部":"421","長野県南部":"422","岐阜県飛騨":"430","岐阜県美濃東部":"431","岐阜県美濃中西部":"432","静岡県伊豆":"440","静岡県東部":"441","静岡県中部":"442","静岡県西部":"443","愛知県東部":"450","愛知県西部":"451","三重県北部":"460","三重県中部":"461","三重県南部":"462","滋賀県北部":"500","滋賀県南部":"501","京都府北部":"510","京都府南部":"511","大阪府北部":"520","大阪府南部":"521","兵庫県北部":"530","兵庫県南東部":"531","兵庫県南西部":"532","兵庫県淡路島":"535","奈良県":"540","和歌山県北部":"550","和歌山県南部":"551","鳥取県東部":"560","鳥取県中部":"562","鳥取県西部":"563","島根県東部":"570","島根県西部":"571","島根県隠岐":"575","岡山県北部":"580","岡山県南部":"581","広島県北部":"590","広島県南東部":"591","広島県南西部":"592","徳島県北部":"600","徳島県南部":"601","香川県東部":"610","香川県西部":"611","愛媛県東予":"620","愛媛県中予":"621","愛媛県南予":"622","高知県東部":"630","高知県中部":"631","高知県西部":"632","山口県北部":"700","山口県西部":"702","山口県東部":"703","山口県中部":"704","福岡県福岡":"710","福岡県北九州":"711","福岡県筑豊":"712","福岡県筑後":"713","佐賀県北部":"720","佐賀県南部":"721","長崎県北部":"730","長崎県南西部":"731","長崎県島原半島":"732","長崎県対馬":"735","長崎県壱岐":"736","長崎県五島":"737","熊本県阿蘇":"740","熊本県熊本":"741","熊本県球磨":"742","熊本県天草・芦北":"743","大分県北部":"750","大分県中部":"751","大分県南部":"752","大分県西部":"753","宮崎県北部平野部":"760","宮崎県北部山沿い":"761","宮崎県南部平野部":"762","宮崎県南部山沿い":"763","鹿児島県薩摩":"770","鹿児島県大隅":"771","鹿児島県十島村":"774","鹿児島県甑島":"775","鹿児島県種子島":"776","鹿児島県屋久島":"777","鹿児島県奄美北部":"778","鹿児島県奄美南部":"779","沖縄県本島北部":"800","沖縄県本島中南部":"801","沖縄県久米島":"802","沖縄県大東島":"803","沖縄県宮古島":"804","沖縄県石垣島":"805","沖縄県与那国島":"806","沖縄県西表島":"807"};
+const regionMap = {"道央": ["石狩", "後志", "空知"],"道南": ["渡島", "檜山", "奥尻島", "胆振", "日高"],
+  "道北": ["上川", "留萌", "宗谷", "利尻礼文"],
+  "道東": ["網走", "北見", "紋別", "十勝", "釧路", "根室"],
+  "青森": ["青森"], "岩手": ["岩手"], "宮城": ["宮城"], "秋田": ["秋田"], "山形": ["山形"], "福島": ["福島"],
+  "茨城": ["茨城"],"栃木": ["栃木"], "群馬": ["群馬"], "埼玉": ["埼玉"], "千葉": ["千葉"], "東京": ["東京"],
+  "伊豆諸島": ["伊豆大島", "新島", "神津島", "三宅島", "八丈島"], "小笠原": ["小笠原"], "神奈川": ["神奈川"],
+  "新潟": ["新潟", "佐渡"], "富山": ["富山"], "石川": ["石川"], "福井": ["福井"],
+  "山梨": ["山梨"], "長野": ["長野"], "岐阜": ["岐阜"], "静岡": ["静岡"], "愛知": ["愛知"],
+  "三重": ["三重"], "滋賀": ["滋賀"], "京都": ["京都府"], "大阪": ["大阪"], "兵庫": ["兵庫", "淡路島"],
+  "奈良": ["奈良"], "和歌山": ["和歌山"], "鳥取": ["鳥取"], "島根": ["島根", "隠岐"], "岡山": ["岡山"],
+  "広島": ["広島"], "山口": ["山口"], "徳島": ["徳島"], "香川": ["香川"], "愛媛": ["愛媛"], "高知": ["高知"],
+  "福岡": ["福岡"], "佐賀": ["佐賀"], "長崎": ["長崎"], "熊本": ["熊本"], "大分": ["大分"], "宮崎": ["宮崎"],
+  "鹿児島": ["薩摩", "大隈", "十島村", "甑島", "種子島", "屋久島"], "奄美群島": ["奄美"],
+  "沖縄本島": ["沖縄本島", "久米島"], "大東島": ["大東島"], "宮古島": ["宮古島"],
+  "八重山": ["石垣島", "与那国島", "西表島"]
+};
+
+const size = 30, outer=10, inner=5;
+const crossIcon = L.divIcon({
+  className:'',
+  html: `
+    <div style="width:${size}px;height:${size}px;position:relative;">
+      <div style="position:absolute;top:50%;left:50%;width:${size}px;height:${outer}px;background:#ffeb3b;transform:translate(-50%,-50%) rotate(45deg)"></div>
+      <div style="position:absolute;top:50%;left:50%;width:${size}px;height:${outer}px;background:#ffeb3b;transform:translate(-50%,-50%) rotate(-45deg)"></div>
+      <div style="position:absolute;top:50%;left:50%;width:${size}px;height:${inner}px;background:red;transform:translate(-50%,-50%) rotate(45deg)"></div>
+      <div style="position:absolute;top:50%;left:50%;width:${size}px;height:${inner}px;background:red;transform:translate(-50%,-50%) rotate(-45deg)"></div>
+    </div>`,
+  iconSize:[size,size], iconAnchor:[size/2,size/2]
+});
+
+function updateCountLabel(lat, lon, pCount, sCount) {
+  if(countLabel) countLabel.remove();
+
+  const pText = pCount !== "-100" ? `<span style="color:#1976d2;">あと${Math.ceil(pCount)}秒</span>` : '';
+  const sText = sCount !== "-100" ? `<span style="color:#d32f2f;">あと${Math.ceil(sCount)}秒</span>` : '';
+
+  const html = `
+    <div style="
+      display:flex;
+      flex-direction:column;
+      font-family:'Yu Gothic','YuGothic','Meiryo',sans-serif;
+      font-weight:bold;
+      text-align:left;
+      font-size:20px;
+    ">
+      ${pText}
+      ${sText}
+    </div>
+  `;
+
+  countLabel = L.marker([lat, lon], {
+    icon: L.divIcon({
+      className:'',
+      html: html,
+      iconSize: [200,100],
+      iconAnchor: [-15, 15]
+    }),
+    interactive:false
+  }).addTo(map);
+}
+
+// fetch & 初期描画
+async function fetchEEW(){
+  try{
+    const res = await fetch(EEW_JSON_URL);
+    if(!res.ok) throw new Error("fetch failed");
+    const data = await res.json();
+
+    const newCodes = data.WarnArea.map(a => areaCode[a.Chiiki]).filter(Boolean);
+    const newCodesUnique = [...new Set(newCodes)];
+
+    if (JSON.stringify(lastWarnArea) !== JSON.stringify(newCodesUnique)) {
+        updateWarnAreaGeo(data);
+        lastWarnArea = newCodesUnique;
+    }
+
+    // 発表時刻
+    announcedTime = new Date(data.AnnouncedTime.replace(/-/g,"/"));
+    const elapsedSec = (new Date() - announcedTime) / 1000;
+
+    if(elapsedSec > 5*60 && data.isFinal){
+      // infoBoxに表示
+      const infoBox = document.getElementById("infoBox");
+      infoBox.innerHTML = "<b>緊急地震速報は<br>発表されていません。</b>";
+      infoBox.style.background = "rgba(180, 255, 180, 0.9)";
+      infoBox.style.color = "#000";
+
+      // マーカー・円を削除
+      if(marker && map.hasLayer(marker)) map.removeLayer(marker);
+      marker = null;
+      if(pCircle && map.hasLayer(pCircle)) map.removeLayer(pCircle);
+      pCircle = null;
+      if(sCircle && map.hasLayer(sCircle)) map.removeLayer(sCircle);
+      sCircle = null;
+      if(countLabel) countLabel.remove();
+      countLabel = null;
+
+      // 津波注意も消す
+      document.getElementById("warnArea").style.display = "none";
+      return; // 以降の処理を中断
+    }
+
+    const newLat = data.Latitude;
+    const newLon = data.Longitude;
+    const newDepth = data.Depth;
+    originTime = new Date(data.OriginTime.replace(/-/g,"/"));
+    t = (new Date() - originTime) / 1000;
+
+    if (newLat==null || newLon==null) return;
+    if (eventID !== data.EventID) isFirstView = true;
+    eventID = data.EventID;
+
+    lat = newLat;
+    lon = newLon;
+    depth = newDepth;
+
+    // マーカー
+    if(!marker){
+      marker = L.marker([lat, lon], {icon: crossIcon, interactive:false}).addTo(map);
+    } else {
+      marker.setLatLng([lat, lon]);
+    }
+
+    // ===== 円 =====
+    t = (new Date() - originTime) / 1000;
+    const pR = calcSurfaceRadius(P_SPEED, t, depth);
+    const sR = calcSurfaceRadius(S_SPEED, t, depth);
+
+    // P波（常に描画）
+    if (!pCircle && pR != null) {
+      pCircle = L.circle([lat, lon], {
+        radius: pR,
+        color: "#1976d2",
+        weight: 2,
+        fill: false
+      }).addTo(map);
+    } else if (pCircle && pR != null) {
+      pCircle.setLatLng([lat, lon]); // ← これを追加
+      pCircle.setRadius(pR);
+    }
+     // 初回のみP波円に合わせてズーム
+    if (isFirstView) {
+      map.fitBounds(pCircle.getBounds(), {padding:[50,50]});
+      isFirstView = false;
+    }
+
+    // S波（地表に出てから描画）
+    if (sR > 0 && !sCircle) {
+      sCircle = L.circle([lat, lon], {
+        radius: sR,
+        color: "#d32f2f",
+        weight: 2,
+        fill: false
+      }).addTo(map);
+    } else if (sR > 0 && sCircle) {
+      sCircle.setLatLng([lat, lon]); // ← 追加
+      sCircle.setRadius(sR);
+    }
+    sCR = sR;
+
+    if (pR <= 0) {
+      pCount = depth / P_SPEED - t; // 残り秒数
+      if (pCount < 0) pCount = "-100";
+    } else {
+      pCount = "-100";
+    }
+
+    if (sR <= 0) {
+      sCount = depth / S_SPEED - t;
+      if (sCount < 0) sCount = "-100";
+    } else {
+      sCount = "-100";
+    }
+
+    if (isFirstView) {
+      map.setView([lat, lon], 7);
+      isFirstView = false;
+    }
+
+    updateCountLabel(lat, lon, pCount, sCount);
+    updateInfoBox(data); // ← ここを追加
+  } catch(e){
+    console.warn(e);
+  }
+}
+
+async function updateWarnAreaGeo(data) {
+
+  if (!data.WarnArea || data.WarnArea.length === 0) return;
+
+  const codes = [];
+
+  // WarnAreaをforで回す
+  for (const area of data.WarnArea) {
+    const chiiki = area.Chiiki;
+    if (!chiiki) continue;
+
+    const code = areaCode[chiiki];
+    if (code) codes.push(code);
+  }
+
+  // 重複削除
+  const uniqueCodes = [...new Set(codes)];
+
+  // 使わなくなったレイヤー削除
+  for (const code in geoLayerCache) {
+    if (!uniqueCodes.includes(code)) {
+      map.removeLayer(geoLayerCache[code]);
+    }
+  }
+
+  // GeoJSON描画
+  for (const code of uniqueCodes) {
+      try {
+          await loadAndDrawGeoJSON(code);
+      } catch(e) {
+          console.warn("GeoJSONの描画でエラー", code, e);
+          // ここでエラーが出ても地図は止まらず、他の処理は続く
+      }
+  }
+}
+
+async function loadAndDrawGeoJSON(code) {
+
+  if (!code) return;
+
+  // 既に描画済みなら再追加だけ
+  if (geoLayerCache[code]) {
+    map.addLayer(geoLayerCache[code]);
+    return;
+  }
+
+  // まだfetchしてないなら取得
+  if (!geoCache[code]) {
+    const url = `https://geoshape.ex.nii.ac.jp/jma/resource/AreaForecastLocalE/20240520/${code}.geojson`;
+    const res = await fetch(url);
+    if (!res.ok) return;
+    geoCache[code] = await res.json();
+  }
+
+  // Canvasで描画
+  const layer = L.geoJSON(geoCache[code], {
+    renderer: canvasRenderer,
+    style: {
+      color: "#808080",
+      weight: 1,
+      fillColor: "#808080",
+      fillOpacity: 0.25
+    },
+    interactive: false
+  });
+
+  geoLayerCache[code] = layer;
+  layer.addTo(map);
+}
+
+// 半径計算（※描画とは別）
+function calcSurfaceRadius(speed, timeSec, depthKm){
+  const d = speed * timeSec;
+  if (d <= depthKm) return 0;
+  return Math.sqrt(d*d - depthKm*depthKm) * 1000;
+}
+
+function updateInfoBox(data) {
+  const infoBox = document.getElementById("infoBox");
+  const warnArea = document.getElementById("warnArea");
+  if (!data) return;
+
+  //震源情報
+  const title = data.Title || "緊急地震速報";
+  const plum = data.isAssumption ? "  /  PLUM報" : "";
+  const hypocenter = data.Hypocenter || "-";
+  let lt = (data.Latitude != null) ? Math.abs(data.Latitude) : "--";
+  let ln = (data.Longitude != null) ? Math.abs(data.Longitude) : "--";
+    // 緯度
+    if (data.Latitude > 0) lt = "N" + lt;
+    else if (data.Latitude < 0) lt = "S" + lt;
+    // 経度
+    if (data.Longitude > 0) ln = "E" + ln;
+    else if (data.Longitude < 0) ln = "W" + ln;
+  //最大震度等
+  const maxInt = data.MaxIntensity || "不明";
+  let mag = "M" + (data.Magunitude ?? "不明");
+  let depth = data.Depth || "不明";
+  let depthKm = " km";
+  if (data.isAssumption) {
+    mag = "推定なし";
+    depth = "推定なし";
+    depthKm = "";
+  }
+  const serial = data.Serial || "-";
+  const lastSerial = data.isFinal ? "(最終)" : "";
+  const orgin = data.OriginTime || "----/--/-- --:--:--";
+  const announce = data.AnnouncedTime || "----/--/-- --:--:--";
+  const isSea = data.isSea ? "海域地震" : "内陸地震";
+  const accE = data.Accuracy?.Epicenter || "不明";
+  const accD = data.Accuracy?.Depth || "不明";
+  const accM = data.Accuracy?.Magnitude || "不明";
+
+  infoBox.innerHTML = `
+    #第${serial}${lastSerial}報${plum}<br>
+    ${orgin}発生<br>
+    <b style="font-size:26px">${title}</b><br><br>
+    震源地<br>
+    　<b style="font-size:30px">${hypocenter}</b><br>
+    　<b style="font-size:16px">${lt}º${ln}º／${isSea}</b><br>
+    推定最大震度<br>
+    　<b style="font-size:30px">${maxInt}</b><br>
+    マグニチュード<br>
+    　<b style="font-size:30px">${mag}</b><br>
+    震源の深さ<br>
+    　<b style="font-size:30px">${depth}</b>${depthKm}<br>
+    <br>
+    <span style="font-size:14px">精度に関する情報<br>
+    震央　<b>${accE}</b><br>
+    深さ　<b>${accD}</b><br>
+    　Ｍ　<b>${accM}</b><br>
+    <br>
+    発表時刻 ${announce}</span>
+  `;
+
+  if (maxInt === "7") { bg = "rgba(180,0,104,0.9)"; tc = "#fff"; }
+  else if (maxInt === "6強") { bg = "rgba(165,0,33,0.9)"; tc = "#fff"; }
+  else if (maxInt === "6弱") { bg = "rgba(255,40,0,0.9)"; tc = "#fff"; }
+  else if (maxInt === "5強") { bg = "rgba(255,153,0,0.9)"; tc = "#fff"; }
+  else if (maxInt === "5弱") { bg = "rgba(255,230,0,0.9)"; tc = "#000"; }
+  else if (maxInt === "4") { bg = "rgba(255,230,150,0.9)"; tc = "#000"; }
+  else if (maxInt === "3") { bg = "rgba(0,65,255,0.9)"; tc = "#fff"; }
+  else if (maxInt === "2") { bg = "rgba(0,170,255,0.9)"; tc = "#fff"; }
+  else if (maxInt === "1") { bg = "rgba(242,242,255,0.9)"; tc = "#000"; }
+  else { bg = "rgba(211, 211, 211, 0.9)"; tc = "#000";}
+
+
+  infoBox.style.background = bg;
+  infoBox.style.color = tc;
+
+  if (data.isTraining) {
+    trainingBox.innerHTML = '訓練<span style="font-size:24px;"><br>Drill</span>';
+    trainingBox.style.background = "rgb(255,0,0)";
+  } else {
+    trainingBox.innerHTML = "";
+    trainingBox.style.background = "rgba(255,0,0,0)";
+  }
+
+  // いったん非表示
+  tsunamiBox.style.display = "none";
+  tsunamiChuui = false;
+
+  if (data.isSea && data.Depth <= 60) {
+    if (data.isWarn || data.Magunitude >= 6.5) {
+      tsunamiChuui = true;
+      tsunamiBox.innerHTML = `
+        <div>
+          <div style="font-size:22px;font-weight:bold;">津波に注意</div>
+          <div style="margin-top:6px;font-size:14px;">
+            沿岸で長く強い揺れを感じた場合は、<br>
+            津波が襲来する可能性があります<br>
+            念のため海や川から離れてください<br>
+            ［今後の情報に注意］
+          </div>
+        </div>
+      `;
+
+      requestAnimationFrame(() => {
+        tsunamiBox.style.display = "block";
+      });
+    }
+  }
+
+  if (data.isWarn) {
+    document.getElementById("warnArea").style.display = "block";
+  } else {
+    document.getElementById("warnArea").style.display = "none";
+  }
+
+  // ▼ 対象地域（地方）抽出
+  const regionSet = new Set();
+
+  for (const { Chiiki } of data.WarnArea) {
+    for (const [region, areas] of Object.entries(regionMap)) {
+      if (areas.some(area => Chiiki.includes(area))) {
+        regionSet.add(region);
+      }
+    }
+  }
+
+  // ▼ 地方の表示順（固定）
+  const regionOrder2 = ["道北","道央","道南","道東","青森","岩手","宮城","秋田","山形","福島",
+    "茨城","栃木","群馬","埼玉","千葉","東京","伊豆諸島","小笠原","神奈川",
+    "新潟","富山","石川","福井","山梨","長野","岐阜","静岡","愛知","三重",
+    "滋賀","京都","大阪","兵庫","奈良","和歌山","鳥取","島根","岡山","広島","山口","徳島","香川","愛媛","高知",
+    "福岡","佐賀","長崎","熊本","大分","宮崎","鹿児島","奄美群島","沖縄本島","大東島","宮古島","八重山"];
+      
+  const sortedRegions = regionOrder2.filter(r => regionSet.has(r));
+  warnArea.innerHTML = `
+  <span style="font-weight:normal; font-size:20px; background:#ffff00; color:#ff0000">
+    強い揺れに警戒。姿勢を低くして頭を守ってください
+  </span><br>
+  <div style="
+    font-size:28px;
+    line-height:1.2;         /* 行間を詰める */
+  ">
+    ${sortedRegions.map(r => `<span style="white-space: nowrap; margin-right:20px;">${r}</span>`).join('')}
+  </div>
+  `;
+
+  lastWarnArea = sortedRegions;
+
+}
+
+// アニメーション（S波は存在してから）
+setInterval(()=>{
+  if (pCircle && pCircle.getRadius() > 0) {
+    pCircle.setRadius(pCircle.getRadius() + P_STEP);
+  }
+  if (sCircle && sCircle.getRadius() > 0) {
+    if (sCR > 0) {
+      sCircle.setRadius(sCircle.getRadius() + S_STEP);
+    } else {
+      sCircle.remove(); // 地図から削除
+      sCircle = null;   // 変数もリセット
+    }
+  }
+}, ANIM_INTERVAL);
+
+// fetch
+fetchEEW();
+setInterval(fetchEEW, FETCH_INTERVAL);
+</script>
+<script>
+function updateClock() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const mo = String(now.getMonth()+1).padStart(2,'0');
+  const d = String(now.getDate()).padStart(2,'0');
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(now.getMinutes()).padStart(2,'0');
+  const s = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('clock').textContent = `${y}/${mo}/${d} ${h}:${m}:${s}`;
+}
+
+// 初回表示
+updateClock();
+// 1秒ごとに更新
+setInterval(updateClock, 1000);
+
+document.getElementById('clock').addEventListener('click', () => {
+  isFirstView = true;
+});
+</script>
+</body>
+</html>
