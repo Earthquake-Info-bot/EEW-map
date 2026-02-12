@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>[t0.1.1]EEW Map Viewer</title>
+  <title>[t0.1.2]EEW Map Viewer</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -378,7 +378,7 @@ async function loadAndDrawGeoJSON(code) {
 
     // 簡略化
     geo = turf.simplify(geo, {
-      tolerance: 0.001,  // 数値を大きくするとより簡略化、速くなる
+      tolerance: 0.005,  // 数値を大きくするとより簡略化、速くなる
       highQuality: false  // 高品質オプションOFFでさらに処理速く
     });
 
