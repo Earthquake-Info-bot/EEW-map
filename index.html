@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EEW Map Viewer</title>
+  <title>[t0.1.1]EEW Map Viewer</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -91,6 +91,7 @@
 "></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 <script>
 const map = L.map("map").setView([36.0, 138.0], 5);
 L.tileLayer(
@@ -359,7 +360,6 @@ async function updateWarnAreaGeo(data) {
 }
 
 async function loadAndDrawGeoJSON(code) {
-
   if (!code) return;
 
   // 既に描画済みなら再追加だけ
@@ -373,7 +373,16 @@ async function loadAndDrawGeoJSON(code) {
     const url = `https://geoshape.ex.nii.ac.jp/jma/resource/AreaForecastLocalE/20240520/${code}.geojson`;
     const res = await fetch(url);
     if (!res.ok) return;
-    geoCache[code] = await res.json();
+
+    let geo = await res.json();
+
+    // 簡略化
+    geo = turf.simplify(geo, {
+      tolerance: 0.001,  // 数値を大きくするとより簡略化、速くなる
+      highQuality: false  // 高品質オプションOFFでさらに処理速く
+    });
+
+    geoCache[code] = geo;
   }
 
   // Canvasで描画
