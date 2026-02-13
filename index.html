@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>[t0.1.5]EEW Map Viewer</title>
+  <title>[t0.1.7]EEW Map Viewer</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -312,6 +312,7 @@ async function fetchEEW(){
 
     updateCountLabel(lat, lon, pCount, sCount);
     updateInfoBox(data); // ← ここを追加
+    await updateWarnAreaGeo(data);
   } catch(e){
     console.warn(e);
   }
@@ -346,7 +347,7 @@ async function updateWarnAreaGeo(data) {
     // --- 新規地域 ---
     if (!wroteWarnArea[chiiki]) {
 
-      const layer = await loadAndDrawGeoJSON(code);
+      const layer = await loadAndDrawGeoJSON(code, shindo);
 
       wroteWarnArea[chiiki] = {
         shindo: shindo,
@@ -361,20 +362,26 @@ async function updateWarnAreaGeo(data) {
     if (wroteWarnArea[chiiki].shindo !== shindo) {
 
       wroteWarnArea[chiiki].shindo = shindo;
-
-      // 今は全部grayなので何もしない
-      // 将来色変更するならここで layer.setStyle()
+    
+      const layer = wroteWarnArea[chiiki].layer;
+      const color = getShindoColor(shindo);
+    
+      layer.setStyle({
+        color: color,
+        fillColor: color
+      });
     }
   }
 }
 
-async function loadAndDrawGeoJSON(code) {
+async function loadAndDrawGeoJSON(code, shindo) {
   if (!code) return;
 
   // 既に描画済みなら再追加だけ
   if (geoLayerCache[code]) {
-    map.addLayer(geoLayerCache[code]);
-    return;
+    const layer = geoLayerCache[code];
+    map.addLayer(layer);
+    return layer;
   }
 
   // まだfetchしてないなら取得
@@ -395,13 +402,15 @@ async function loadAndDrawGeoJSON(code) {
   }
 
   // Canvasで描画
+  const color = getShindoColor(shindo);
+  
   const layer = L.geoJSON(geoCache[code], {
     renderer: canvasRenderer,
     style: {
-      color: "#808080",
-      weight: 1,
-      fillColor: "#808080",
-      fillOpacity: 0.25
+      color: color,
+      weight: 2,
+      fillColor: color,
+      fillOpacity: 0.4
     },
     interactive: false
   });
@@ -563,6 +572,19 @@ function updateInfoBox(data) {
     document.getElementById("warnArea").style.display = "none";
   }
 }
+
+function getShindoColor(shindo) {
+  if (shindo === "7") return "rgba(180,0,104,0.9)";
+  else if (shindo === "6強") return "rgba(165,0,33,0.9)";
+  else if (shindo === "6弱") return "rgba(255,40,0,0.9)";
+  else if (shindo === "5強") return "rgba(255,153,0,0.9)";
+  else if (shindo === "5弱") return "rgba(255,230,0,0.9)";
+  else if (shindo === "4") return "rgba(255,230,150,0.9)";
+  else if (shindo === "3") return "rgba(0,65,255,0.9)";
+  else if (shindo === "2") return "rgba(0,170,255,0.9)";
+  else if (shindo === "1") return "rgba(242,242,255,0.9)";
+  else return "rgba(128,128,128,0.9)";
+}  
 
 // アニメーション（S波は存在してから）
 setInterval(()=>{
