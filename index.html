@@ -235,6 +235,7 @@ async function fetchEEW(){
       countLabel = null;
 
       // 津波注意も消す
+      document.getElementById("tsunamiBox").style.display = "none";
       document.getElementById("warnArea").style.display = "none";
       return; // 以降の処理を中断
     }
