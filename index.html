@@ -379,7 +379,7 @@ async function loadAndDrawGeoJSON(code) {
 
     // 簡略化
     geo = turf.simplify(geo, {
-      tolerance: 0.05,  // 数値を大きくするとより簡略化、速くなる
+      tolerance: 0.005,  // 数値を大きくするとより簡略化、速くなる
       highQuality: false  // 高品質オプションOFFでさらに処理速く
     });
 
