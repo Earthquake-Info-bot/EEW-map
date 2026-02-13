@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>[t0.1.4]EEW Map Viewer</title>
+  <title>[t0.1.5]EEW Map Viewer</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -130,6 +130,7 @@ let bg = ""; let tc = "000";
 let t = null;
 let tsunamiChuui = false;
 let lastWarnArea = [];
+let wroteWarnArea = {};
 // Canvasレンダラー（1回だけ作る）
 const canvasRenderer = L.canvas({ padding: 0.5 });
 // GeoJSONキャッシュ
@@ -204,14 +205,6 @@ async function fetchEEW(){
     const res = await fetch(EEW_JSON_URL);
     if(!res.ok) throw new Error("fetch failed");
     const data = await res.json();
-
-    const newCodes = data.WarnArea.map(a => areaCode[a.Chiiki]).filter(Boolean);
-    const newCodesUnique = [...new Set(newCodes)];
-
-    if (JSON.stringify(lastWarnArea) !== JSON.stringify(newCodesUnique)) {
-        updateWarnAreaGeo(data);
-        lastWarnArea = newCodesUnique;
-    }
 
     // 発表時刻
     announcedTime = new Date(data.AnnouncedTime.replace(/-/g,"/"));
@@ -326,37 +319,52 @@ async function fetchEEW(){
 
 async function updateWarnAreaGeo(data) {
 
-  if (!data.WarnArea || data.WarnArea.length === 0) return;
+  if (!data.WarnArea) return;
 
-  const codes = [];
+  const newChiikiSet = new Set(data.WarnArea.map(a => a.Chiiki));
 
-  // WarnAreaをforで回す
-  for (const area of data.WarnArea) {
-    const chiiki = area.Chiiki;
-    if (!chiiki) continue;
-
-    const code = areaCode[chiiki];
-    if (code) codes.push(code);
-  }
-
-  // 重複削除
-  const uniqueCodes = [...new Set(codes)];
-
-  // 使わなくなったレイヤー削除
-  for (const code in geoLayerCache) {
-    if (!uniqueCodes.includes(code)) {
-      map.removeLayer(geoLayerCache[code]);
+  // ==========================
+  // ① 消す処理（縮小対応）
+  // ==========================
+  for (const chiiki in wroteWarnArea) {
+    if (!newChiikiSet.has(chiiki)) {
+      map.removeLayer(wroteWarnArea[chiiki].layer);
+      delete wroteWarnArea[chiiki];
     }
   }
 
-  // GeoJSON描画
-  for (const code of uniqueCodes) {
-      try {
-          await loadAndDrawGeoJSON(code);
-      } catch(e) {
-          console.warn("GeoJSONの描画でエラー", code, e);
-          // ここでエラーが出ても地図は止まらず、他の処理は続く
-      }
+  // ==========================
+  // ② 追加・震度変化対応
+  // ==========================
+  for (const area of data.WarnArea) {
+
+    const chiiki = area.Chiiki;
+    const shindo = area.Shindo1;
+    const code = areaCode[chiiki];
+    if (!code) continue;
+
+    // --- 新規地域 ---
+    if (!wroteWarnArea[chiiki]) {
+
+      const layer = await loadAndDrawGeoJSON(code);
+
+      wroteWarnArea[chiiki] = {
+        shindo: shindo,
+        code: code,
+        layer: layer
+      };
+
+      continue;
+    }
+
+    // --- 震度変化 ---
+    if (wroteWarnArea[chiiki].shindo !== shindo) {
+
+      wroteWarnArea[chiiki].shindo = shindo;
+
+      // 今は全部grayなので何もしない
+      // 将来色変更するならここで layer.setStyle()
+    }
   }
 }
 
@@ -400,6 +408,7 @@ async function loadAndDrawGeoJSON(code) {
 
   geoLayerCache[code] = layer;
   layer.addTo(map);
+  return layer;
 }
 
 // 半径計算（※描画とは別）
