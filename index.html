@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>[t0.1.10]EEW Map Viewer</title>
+  <title>[t0.1.11]EEW Map Viewer</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -332,6 +332,13 @@ async function updateWarnAreaGeo(data) {
       if (layer && map.hasLayer(layer)) {
         map.removeLayer(layer);
       }
+  
+      // キャッシュも map に残っていたら削除
+      const code = wroteWarnArea[chiiki].code;
+      if (geoLayerCache[code] && map.hasLayer(geoLayerCache[code])) {
+        map.removeLayer(geoLayerCache[code]);
+      }
+  
       delete wroteWarnArea[chiiki];
     }
   }
