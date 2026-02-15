@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>[t0.1.9]EEW Map Viewer</title>
+  <title>[t0.1.10]EEW Map Viewer</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -319,7 +319,6 @@ async function fetchEEW(){
 }
 
 async function updateWarnAreaGeo(data) {
-
   if (!data.WarnArea) return;
 
   const newChiikiSet = new Set(data.WarnArea.map(a => a.Chiiki));
@@ -329,7 +328,10 @@ async function updateWarnAreaGeo(data) {
   // ==========================
   for (const chiiki in wroteWarnArea) {
     if (!newChiikiSet.has(chiiki)) {
-      map.removeLayer(wroteWarnArea[chiiki].layer);
+      const layer = wroteWarnArea[chiiki].layer;
+      if (layer && map.hasLayer(layer)) {
+        map.removeLayer(layer);
+      }
       delete wroteWarnArea[chiiki];
     }
   }
@@ -338,7 +340,6 @@ async function updateWarnAreaGeo(data) {
   // ② 追加・震度変化対応
   // ==========================
   for (const area of data.WarnArea) {
-
     const chiiki = area.Chiiki;
     const shindo = area.Shindo1;
     const code = areaCode[chiiki];
@@ -346,6 +347,10 @@ async function updateWarnAreaGeo(data) {
 
     // --- 新規地域 ---
     if (!wroteWarnArea[chiiki]) {
+      // キャッシュが残ってても map に追加済みなら削除してから再追加
+      if (geoLayerCache[code] && map.hasLayer(geoLayerCache[code])) {
+        map.removeLayer(geoLayerCache[code]);
+      }
 
       const layer = await loadAndDrawGeoJSON(code, shindo);
 
@@ -354,22 +359,15 @@ async function updateWarnAreaGeo(data) {
         code: code,
         layer: layer
       };
-
       continue;
     }
 
     // --- 震度変化 ---
     if (wroteWarnArea[chiiki].shindo !== shindo) {
-
       wroteWarnArea[chiiki].shindo = shindo;
-    
       const layer = wroteWarnArea[chiiki].layer;
       const color = getShindoColor(shindo);
-    
-      layer.setStyle({
-        color: color,
-        fillColor: color
-      });
+      layer.setStyle({ color: color, fillColor: color });
     }
   }
 }
