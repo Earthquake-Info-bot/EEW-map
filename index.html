@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>[t0.1.10]EEW Map Viewer</title>
+  <title>[t0.1.11]EEW Map Viewer</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -328,12 +328,13 @@ async function updateWarnAreaGeo(data) {
   // ==========================
   for (const chiiki in wroteWarnArea) {
     if (!newChiikiSet.has(chiiki)) {
-      const layer = wroteWarnArea[chiiki].layer;
-      layer.setStyle({
+      const areaObj = wroteWarnArea[chiiki];
+      areaObj.layer.setStyle({
         fillColor: "rgba(0,0,0,0)",
         color: "rgba(0,0,0,0)",
         fillOpacity: 0
       });
+      areaObj.hidden = true; // 透明化状態をフラグで管理
     }
   }
 
@@ -352,21 +353,23 @@ async function updateWarnAreaGeo(data) {
       wroteWarnArea[chiiki] = {
         shindo: shindo,
         code: code,
-        layer: layer
+        layer: layer,
+        hidden: false
       };
       continue;
     }
 
     // --- 震度変化 or 復活 ---
-    const layer = wroteWarnArea[chiiki].layer;
-    if (wroteWarnArea[chiiki].shindo !== shindo || layer.options.style.fillOpacity === 0) {
-      wroteWarnArea[chiiki].shindo = shindo;
+    const areaObj = wroteWarnArea[chiiki];
+    if (areaObj.shindo !== shindo || areaObj.hidden) {
+      areaObj.shindo = shindo;
       const color = getShindoColor(shindo);
-      layer.setStyle({
+      areaObj.layer.setStyle({
         color: color,
         fillColor: color,
         fillOpacity: 1
       });
+      areaObj.hidden = false;
     }
   }
 }
