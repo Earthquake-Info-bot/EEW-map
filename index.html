@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>[t0.1.11]EEW Map Viewer</title>
+  <title>[t0.1.12]EEW Map Viewer</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -322,59 +322,41 @@ async function updateWarnAreaGeo(data) {
   if (!data.WarnArea) return;
 
   const newChiikiSet = new Set(data.WarnArea.map(a => a.Chiiki));
+  const existingChiikiSet = new Set(Object.keys(wroteWarnArea));
 
-  // ==========================
-  // ① 消す処理（縮小対応）
-  // ==========================
-  for (const chiiki in wroteWarnArea) {
-    if (!newChiikiSet.has(chiiki)) {
+  // 減った地域が1つでもあれば、すべて消す
+  let anyRemoved = [...existingChiikiSet].some(chiiki => !newChiikiSet.has(chiiki));
+  if (anyRemoved) {
+    for (const chiiki in wroteWarnArea) {
       const layer = wroteWarnArea[chiiki].layer;
-      if (layer && map.hasLayer(layer)) {
-        map.removeLayer(layer);
-      }
-  
-      // キャッシュも map に残っていたら削除
-      const code = wroteWarnArea[chiiki].code;
-      if (geoLayerCache[code] && map.hasLayer(geoLayerCache[code])) {
-        map.removeLayer(geoLayerCache[code]);
-      }
-  
-      delete wroteWarnArea[chiiki];
+      if (layer && map.hasLayer(layer)) map.removeLayer(layer);
     }
+    wroteWarnArea = {};
   }
 
-  // ==========================
-  // ② 追加・震度変化対応
-  // ==========================
+  // 追加・震度変化対応
   for (const area of data.WarnArea) {
     const chiiki = area.Chiiki;
     const shindo = area.Shindo1;
     const code = areaCode[chiiki];
     if (!code) continue;
 
-    // --- 新規地域 ---
+    // 新規地域
     if (!wroteWarnArea[chiiki]) {
-      // キャッシュが残ってても map に追加済みなら削除してから再追加
       if (geoLayerCache[code] && map.hasLayer(geoLayerCache[code])) {
         map.removeLayer(geoLayerCache[code]);
       }
-
       const layer = await loadAndDrawGeoJSON(code, shindo);
-
-      wroteWarnArea[chiiki] = {
-        shindo: shindo,
-        code: code,
-        layer: layer
-      };
+      wroteWarnArea[chiiki] = { shindo, code, layer };
       continue;
     }
 
-    // --- 震度変化 ---
+    // 震度変化
     if (wroteWarnArea[chiiki].shindo !== shindo) {
       wroteWarnArea[chiiki].shindo = shindo;
       const layer = wroteWarnArea[chiiki].layer;
       const color = getShindoColor(shindo);
-      layer.setStyle({ color: color, fillColor: color });
+      layer.setStyle({ color, fillColor: color });
     }
   }
 }
