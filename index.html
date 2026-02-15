@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>[0.1.14]EEW Map Viewer</title>
+  <title>[0.1.15]EEW Map Viewer</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -119,7 +119,7 @@
   height:100px;
   font-weight:bold;
 "></div>
-<div id="shindo-legend" class="shindo-legend">
+<div id="shindo-legend" class="shindo-legend" style="position:absolute; bottom:120px; right:10px;>
   <div class="row header">
     <div class="cell">凡例</div>
   </div>
@@ -362,7 +362,7 @@ async function fetchEEW(){
 async function updateWarnAreaGeo(data) {
   if (!data.WarnArea) return;
 
-  //document.getElementById('shindo-legend').style.display = 'none';
+  document.getElementById('shindo-legend').style.display = 'none';
 
   const newChiikiSet = new Set(data.WarnArea.map(a => a.Chiiki));
 
@@ -416,7 +416,7 @@ async function updateWarnAreaGeo(data) {
     }
   }
 
-  //document.getElementById('shindo-legend').style.display = 'block';
+  document.getElementById('shindo-legend').style.display = 'flex';
 }
 
 async function loadAndDrawGeoJSON(code, shindo) {
