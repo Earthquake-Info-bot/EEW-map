@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>[0.1.17]EEW Map Viewer</title>
+  <title>[0.1.18]EEW Map Viewer</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -198,6 +198,44 @@ const regionMap = {"道央": ["石狩", "後志", "空知"],"道南": ["渡島",
   "鹿児島": ["薩摩", "大隈", "十島村", "甑島", "種子島", "屋久島"], "奄美群島": ["奄美"],
   "沖縄本島": ["沖縄本島", "久米島"], "大東島": ["大東島"], "宮古島": ["宮古島"],
   "八重山": ["石垣島", "与那国島", "西表島"]
+};
+
+const regionOrder1 = [
+  "北海道","道北","道央","道南","道東",
+  "東北","青森","岩手","宮城","秋田","山形","福島",
+  "関東","茨城","栃木","群馬","埼玉","千葉","東京","神奈川",
+  "小笠原",
+  "伊豆諸島","伊豆大島","新島","神津島","三宅島","八丈島",
+  "甲信","山梨","長野",
+  "新潟","佐渡",
+  "北陸","富山","石川","福井",
+  "東海","岐阜","静岡","愛知","三重",
+  "近畿","滋賀","京都","大阪","兵庫","奈良","和歌山",
+  "中国","鳥取","島根","岡山","広島","山口",
+  "四国","徳島","香川","愛媛","高知",
+  "九州","福岡","佐賀","長崎","熊本","大分","宮崎","鹿児島",
+  "沖縄","沖縄本島","奄美群島","大東島","宮古島","八重山",
+];
+
+const chihoMap = {
+  "北海道": ["道北","道央","道南","道東"],
+  "東北": ["青森","岩手","宮城","秋田","山形","福島"],
+  "関東": ["茨城","栃木","群馬","埼玉","千葉","東京","神奈川"],
+  "小笠原": ["小笠原"],
+  "伊豆諸島": ["伊豆諸島"],
+  "甲信": ["山梨","長野"],
+  "北陸": ["富山","石川","福井"],
+  "新潟": ["新潟","佐渡"],
+  "東海": ["岐阜","静岡","愛知","三重"],
+  "近畿": ["滋賀","京都","大阪","兵庫","奈良","和歌山"],
+  "中国": ["鳥取","島根","岡山","広島","山口"],
+  "四国": ["徳島","香川","愛媛","高知"],
+  "九州": ["福岡","佐賀","長崎","熊本","大分","宮崎","鹿児島"],
+  "奄美群島": ["奄美群島"],
+  "沖縄本島": ["沖縄本島"],
+  "大東島": ["大東島"],
+  "宮古島": ["宮古島"],
+  "八重山": ["八重山"]
 };
 
 const size = 30, outer=10, inner=5;
@@ -593,23 +631,45 @@ function updateInfoBox(data) {
     }
   }
 
-  // ▼ 対象地域（地方）抽出
-  const regionSet = new Set();
+    let alertHeader = "";
+    if (isWarn) {
 
-  for (const { Chiiki } of data.WarnArea) {
-    for (const [region, areas] of Object.entries(regionMap)) {
-      if (areas.some(area => Chiiki.includes(area))) {
-        regionSet.add(region);
-      }
-    }
-  }
+        // ▼ 一次区分 → 都道府県に変換
+        const prefSet = new Set();
 
-  // ▼ 地方の表示順（固定）
-  const regionOrder2 = ["道北","道央","道南","道東","青森","岩手","宮城","秋田","山形","福島",
-    "茨城","栃木","群馬","埼玉","千葉","東京","伊豆諸島","小笠原","神奈川",
-    "新潟","富山","石川","福井","山梨","長野","岐阜","静岡","愛知","三重",
-    "滋賀","京都","大阪","兵庫","奈良","和歌山","鳥取","島根","岡山","広島","山口","徳島","香川","愛媛","高知",
-    "福岡","佐賀","長崎","熊本","大分","宮崎","鹿児島","奄美群島","沖縄本島","大東島","宮古島","八重山"];
+        for (const { Chiiki } of data.WarnArea) {
+          for (const [pref, areas] of Object.entries(regionMap)) {
+            if (areas.some(a => Chiiki.includes(a))) {
+              prefSet.add(pref);
+            }
+          }
+        }
+
+        // ▼ 2/3ルール判定後の表示用配列
+        const headerParts = [];
+
+        // ▼ chihoMapを使って地方ごとに判定
+        for (const [chiho, subareas] of Object.entries(chihoMap)) {
+
+            // 警報に含まれるsubarea数
+            const matchedCount = subareas.filter(pref => prefSet.has(pref)).length;
+
+            // 2/3以上なら地方名で表示
+            if (matchedCount === subareas.length) {
+                headerParts.push(chiho);
+            } else {
+                // 2/3未満なら含まれる地域だけ追加
+                subareas.forEach(pref => {
+                  if (prefSet.has(pref) && !headerParts.includes(pref)) {
+                    headerParts.push(pref);
+                  }
+                });
+            }
+        }
+
+        const sortedHeaderParts = regionOrder1.filter(r => headerParts.includes(r))
+            // 2/3未満で入った個別地域を残す
+            .concat(headerParts.filter(r => !regionOrder1.includes(r)));
       
   const sortedRegions = regionOrder2.filter(r => regionSet.has(r));
   warnArea.innerHTML = `
@@ -620,11 +680,11 @@ function updateInfoBox(data) {
     font-size:28px;
     line-height:1.2;         /* 行間を詰める */
   ">
-    ${sortedRegions.map(r => `<span style="white-space: nowrap; margin-right:20px;">${r}</span>`).join('')}
+    ${sortedHeaderParts.map(r => `<span style="white-space: nowrap; margin-right:20px;">${r}</span>`).join('')}
   </div>
   `;
 
-  lastWarnArea = sortedRegions;
+  lastWarnArea = sortedHeaderParts;
 
   if (data.isWarn) {
     document.getElementById("warnArea").style.display = "block";
