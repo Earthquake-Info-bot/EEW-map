@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>[t0.1.20]EEW Map Viewer</title>
+  <title>[t0.1.21]EEW Map Viewer</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -662,6 +662,17 @@ function updateInfoBox(data) {
     const sortedHeaderParts = regionOrder1.filter(r => headerParts.includes(r))
       .concat(headerParts.filter(r => !regionOrder1.includes(r)));
 
+    // ▼ 対象地域（地方）抽出
+    const regionSet = new Set();
+  
+    for (const { Chiiki } of data.WarnArea) {
+      for (const [region, areas] of Object.entries(regionMap)) {
+        if (areas.some(area => Chiiki.includes(area))) {
+          regionSet.add(region);
+        }
+      }
+    }
+    
     const sortedRegions = regionOrder2.filter(r => regionSet.has(r));
 
     warnArea.innerHTML = `
