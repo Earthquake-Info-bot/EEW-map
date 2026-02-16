@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>[0.1.19]EEW Map Viewer</title>
+  <title>[0.1.20]EEW Map Viewer</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -550,13 +550,11 @@ function updateInfoBox(data) {
   const hypocenter = data.Hypocenter || "-";
   let lt = (data.Latitude != null) ? Math.abs(data.Latitude) : "--";
   let ln = (data.Longitude != null) ? Math.abs(data.Longitude) : "--";
-    // 緯度
-    if (data.Latitude > 0) lt = "N" + lt;
-    else if (data.Latitude < 0) lt = "S" + lt;
-    // 経度
-    if (data.Longitude > 0) ln = "E" + ln;
-    else if (data.Longitude < 0) ln = "W" + ln;
-  //最大震度等
+  if (data.Latitude > 0) lt = "N" + lt;
+  else if (data.Latitude < 0) lt = "S" + lt;
+  if (data.Longitude > 0) ln = "E" + ln;
+  else if (data.Longitude < 0) ln = "W" + ln;
+
   const maxInt = data.MaxIntensity || "不明";
   let mag = "M" + (data.Magunitude ?? "不明");
   let depth = data.Depth || "不明";
@@ -606,8 +604,7 @@ function updateInfoBox(data) {
   else if (maxInt === "3") { bg = "rgba(0,65,255,0.9)"; tc = "#fff"; }
   else if (maxInt === "2") { bg = "rgba(0,170,255,0.9)"; tc = "#fff"; }
   else if (maxInt === "1") { bg = "rgba(242,242,255,0.9)"; tc = "#000"; }
-  else { bg = "rgba(211, 211, 211, 0.9)"; tc = "#000";}
-
+  else { bg = "rgba(211, 211, 211, 0.9)"; tc = "#000"; }
 
   infoBox.style.background = bg;
   infoBox.style.color = tc;
@@ -620,7 +617,6 @@ function updateInfoBox(data) {
     trainingBox.style.background = "rgba(255,0,0,0)";
   }
 
-  // いったん非表示
   tsunamiBox.style.display = "none";
   tsunamiChuui = false;
 
@@ -638,74 +634,51 @@ function updateInfoBox(data) {
           </div>
         </div>
       `;
-
-      requestAnimationFrame(() => {
-        tsunamiBox.style.display = "block";
-      });
+      requestAnimationFrame(() => { tsunamiBox.style.display = "block"; });
     }
   }
 
-    let alertHeader = "";
-    if (isWarn) {
+  let alertHeader = "";
+  if (isWarn) {
+    const prefSet = new Set();
+    for (const { Chiiki } of data.WarnArea) {
+      for (const [pref, areas] of Object.entries(regionMap)) {
+        if (areas.some(a => Chiiki.includes(a))) prefSet.add(pref);
+      }
+    }
 
-        // ▼ 一次区分 → 都道府県に変換
-        const prefSet = new Set();
+    const headerParts = [];
+    for (const [chiho, subareas] of Object.entries(chihoMap)) {
+      const matchedCount = subareas.filter(pref => prefSet.has(pref)).length;
+      if (matchedCount === subareas.length) {
+        headerParts.push(chiho);
+      } else {
+        subareas.forEach(pref => {
+          if (prefSet.has(pref) && !headerParts.includes(pref)) headerParts.push(pref);
+        });
+      }
+    }
 
-        for (const { Chiiki } of data.WarnArea) {
-          for (const [pref, areas] of Object.entries(regionMap)) {
-            if (areas.some(a => Chiiki.includes(a))) {
-              prefSet.add(pref);
-            }
-          }
-        }
+    const sortedHeaderParts = regionOrder1.filter(r => headerParts.includes(r))
+      .concat(headerParts.filter(r => !regionOrder1.includes(r)));
 
-        // ▼ 2/3ルール判定後の表示用配列
-        const headerParts = [];
+    const sortedRegions = regionOrder2.filter(r => regionSet.has(r));
 
-        // ▼ chihoMapを使って地方ごとに判定
-        for (const [chiho, subareas] of Object.entries(chihoMap)) {
+    warnArea.innerHTML = `
+      <span style="font-weight:normal; font-size:20px; background:#ffff00; color:#ff0000">
+        強い揺れに警戒。姿勢を低くして頭を守ってください
+      </span><br>
+      <div style="font-size:28px; line-height:1.2;">
+        ${sortedHeaderParts.map(r => `<span style="white-space: nowrap; margin-right:20px;">${r}</span>`).join('')}
+      </div>
+    `;
 
-            // 警報に含まれるsubarea数
-            const matchedCount = subareas.filter(pref => prefSet.has(pref)).length;
+    lastWarnArea = sortedHeaderParts;
 
-            // 2/3以上なら地方名で表示
-            if (matchedCount === subareas.length) {
-                headerParts.push(chiho);
-            } else {
-                // 2/3未満なら含まれる地域だけ追加
-                subareas.forEach(pref => {
-                  if (prefSet.has(pref) && !headerParts.includes(pref)) {
-                    headerParts.push(pref);
-                  }
-                });
-            }
-        }
-
-        const sortedHeaderParts = regionOrder1.filter(r => headerParts.includes(r))
-            // 2/3未満で入った個別地域を残す
-            .concat(headerParts.filter(r => !regionOrder1.includes(r)));
-      
-  const sortedRegions = regionOrder2.filter(r => regionSet.has(r));
-  warnArea.innerHTML = `
-  <span style="font-weight:normal; font-size:20px; background:#ffff00; color:#ff0000">
-    強い揺れに警戒。姿勢を低くして頭を守ってください
-  </span><br>
-  <div style="
-    font-size:28px;
-    line-height:1.2;         /* 行間を詰める */
-  ">
-    ${sortedHeaderParts.map(r => `<span style="white-space: nowrap; margin-right:20px;">${r}</span>`).join('')}
-  </div>
-  `;
-
-  lastWarnArea = sortedHeaderParts;
-
-  if (data.isWarn) {
-    document.getElementById("warnArea").style.display = "block";
-  } else {
-    document.getElementById("warnArea").style.display = "none";
-  }
-}
+    if (data.isWarn) document.getElementById("warnArea").style.display = "block";
+    else document.getElementById("warnArea").style.display = "none";
+  } // ← ここで isWarn の if を閉じる
+} // ← ここで関数全体を閉じる
 
 function getShindoColor(shindo) {
   if (shindo === "7") return "rgba(180,0,104,0.9)";
