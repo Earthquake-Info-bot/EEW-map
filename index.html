@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>[0.1.20]EEW Map Viewer</title>
+  <title>[t0.1.20]EEW Map Viewer</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -639,7 +639,7 @@ function updateInfoBox(data) {
   }
 
   let alertHeader = "";
-  if (isWarn) {
+  if (data.isWarn) {
     const prefSet = new Set();
     for (const { Chiiki } of data.WarnArea) {
       for (const [pref, areas] of Object.entries(regionMap)) {
