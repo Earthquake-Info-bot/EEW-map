@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>[t0.1.15]EEW Map Viewer</title>
+  <title>[t0.1.16]EEW Map Viewer</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -15,14 +15,17 @@
       width:100%; height:100%;
     }
     .shindo-legend {
-      display: flex;
+      position: absolute;
+      bottom: 120px;
+      right: 10px;
+      z-index: 1000;
+      display: none;  /* ←ここで初期非表示 */
       flex-direction: column;
       width: 100px;
       border: 1px solid #000;
       font-weight: bold;
       text-align: center;
     }
-    
     .shindo-legend .row {
       padding: 8px 0;
       margin: 1px 0;
@@ -119,7 +122,7 @@
   height:100px;
   font-weight:bold;
 "></div>
-<div id="shindo-legend" class="shindo-legend" style="position:absolute; bottom:120px; right:10px;>
+<div id="shindo-legend" class="shindo-legend">
   <div class="row header">
     <div class="cell">凡例</div>
   </div>
@@ -416,7 +419,7 @@ async function updateWarnAreaGeo(data) {
     }
   }
 
-  //document.getElementById('shindo-legend').style.display = 'flex';
+  document.getElementById('shindo-legend').style.display = 'flex';
 }
 
 async function loadAndDrawGeoJSON(code, shindo) {
