@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>[t0.1.16]EEW Map Viewer</title>
+  <title>[t0.1.17]EEW Map Viewer</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -175,6 +175,7 @@ let t = null;
 let tsunamiChuui = false;
 let lastWarnArea = [];
 let wroteWarnArea = {};
+let isUpdatingWarnArea = false;
 // Canvasレンダラー（1回だけ作る）
 const canvasRenderer = L.canvas({ padding: 0.5 });
 // GeoJSONキャッシュ
@@ -363,63 +364,74 @@ async function fetchEEW(){
 }
 
 async function updateWarnAreaGeo(data) {
-  if (!data.WarnArea) return;
+  if (isUpdatingWarnArea) return;   // ← 競合防止
+  isUpdatingWarnArea = true;
 
-  document.getElementById('shindo-legend').style.display = 'none';
+  const legend = document.getElementById('shindo-legend');
+  legend.style.display = 'none';
 
-  const newChiikiSet = new Set(data.WarnArea.map(a => a.Chiiki));
+  try {
 
-  // ==========================
-  // ① 消す処理（縮小対応 → 透明化）
-  // ==========================
-  for (const chiiki in wroteWarnArea) {
-    if (!newChiikiSet.has(chiiki)) {
+    if (!data.WarnArea) return;
+
+    const newChiikiSet = new Set(
+      data.WarnArea.map(a => a.Chiiki)
+    );
+
+    // ==========================
+    // ① 消す処理（縮小対応 → 透明化）
+    // ==========================
+    for (const chiiki in wroteWarnArea) {
+      if (!newChiikiSet.has(chiiki)) {
+        const areaObj = wroteWarnArea[chiiki];
+        areaObj.layer.setStyle({
+          fillColor: "rgba(0,0,0,0)",
+          color: "rgba(0,0,0,0)",
+          fillOpacity: 0
+        });
+        areaObj.hidden = true;
+      }
+    }
+
+    // ==========================
+    // ② 追加・震度変化対応
+    // ==========================
+    for (const area of data.WarnArea) {
+      const chiiki = area.Chiiki;
+      const shindo = area.Shindo1;
+      const code = areaCode[chiiki];
+      if (!code) continue;
+
+      // --- 新規地域 ---
+      if (!wroteWarnArea[chiiki]) {
+        const layer = await loadAndDrawGeoJSON(code, shindo);
+        wroteWarnArea[chiiki] = {
+          shindo: shindo,
+          code: code,
+          layer: layer,
+          hidden: false
+        };
+        continue;
+      }
+
+      // --- 震度変化 or 復活 ---
       const areaObj = wroteWarnArea[chiiki];
-      areaObj.layer.setStyle({
-        fillColor: "rgba(0,0,0,0)",
-        color: "rgba(0,0,0,0)",
-        fillOpacity: 0
-      });
-      areaObj.hidden = true; // 透明化状態をフラグで管理
+      if (areaObj.shindo !== shindo || areaObj.hidden) {
+        areaObj.shindo = shindo;
+        const color = getShindoColor(shindo);
+        areaObj.layer.setStyle({
+          color: color,
+          fillColor: color,
+          fillOpacity: 1
+        });
+        areaObj.hidden = false;
+      }
     }
+
+  } finally {
+    legend.style.display = 'flex';
+    isUpdatingWarnArea = false;  // ← 必ず最後に解除
   }
-
-  // ==========================
-  // ② 追加・震度変化対応
-  // ==========================
-  for (const area of data.WarnArea) {
-    const chiiki = area.Chiiki;
-    const shindo = area.Shindo1;
-    const code = areaCode[chiiki];
-    if (!code) continue;
-
-    // --- 新規地域 ---
-    if (!wroteWarnArea[chiiki]) {
-      const layer = await loadAndDrawGeoJSON(code, shindo);
-      wroteWarnArea[chiiki] = {
-        shindo: shindo,
-        code: code,
-        layer: layer,
-        hidden: false
-      };
-      continue;
-    }
-
-    // --- 震度変化 or 復活 ---
-    const areaObj = wroteWarnArea[chiiki];
-    if (areaObj.shindo !== shindo || areaObj.hidden) {
-      areaObj.shindo = shindo;
-      const color = getShindoColor(shindo);
-      areaObj.layer.setStyle({
-        color: color,
-        fillColor: color,
-        fillOpacity: 1
-      });
-      areaObj.hidden = false;
-    }
-  }
-
-  document.getElementById('shindo-legend').style.display = 'flex';
 }
 
 async function loadAndDrawGeoJSON(code, shindo) {
