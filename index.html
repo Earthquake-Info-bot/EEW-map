@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>[r0.1.24]EEW Map Viewer</title>
+  <title>[r0.1.25]EEW Map Viewer</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -543,7 +543,7 @@ async function updateWarnAreaGeo(data) {
     }
 
   } finally {
-    if (data.isWarn) legend.style.display = 'flex';
+    if (data.WarnArea.length > 0) legend.style.display = 'flex';
     isUpdatingWarnArea = false;  // ← 必ず最後に解除
   }
 }
