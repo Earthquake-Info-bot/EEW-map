@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>[r0.1.25]EEW Map Viewer</title>
+  <title>[r0.1.26]EEW Map Viewer</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -654,7 +654,8 @@ function updateInfoBox(data) {
     深さ　<b>${accD}</b><br>
     　Ｍ　<b>${accM}</b><br>
     <br>
-    発表時刻 ${announce}</span>
+    発表時刻 ${announce}<br>
+    NAFY緊急地震速報マップ(Wolfx API)</span>
   `;
 
   if (maxInt === "7") { bg = "rgba(180,0,104,0.9)"; tc = "#fff"; }
