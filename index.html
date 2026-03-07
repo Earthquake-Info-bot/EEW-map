@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>[0.1.31]EEW Map Viewer</title>
+  <title>[0.2.1]EEW Map Viewer</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -43,6 +43,30 @@
     
     /* ヘッダは灰背景 */
     .shindo-legend .row.header { background-color: #ccc; }
+
+    #cancelOverlay{
+      position:fixed;
+      top:0;
+      left:0;
+      width:100%;
+      height:100%;
+      background:rgba(100,100,100,0.3); /* グレー */
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:5000;
+    }
+    
+    .cancelBox{
+      background:#b8ffb8; /* 薄緑 */
+      padding:40px 80px;
+      font-size:40px;
+      font-weight:bold;
+      text-align:center;
+      border-radius:10px;
+      font-family:'Yu Gothic','Meiryo',sans-serif;
+      box-shadow:0 0 20px rgba(0,0,0,0.3);
+    }
   </style>
 </head>
 <body>
@@ -132,6 +156,12 @@
   <div class="row" data-shindo="5強">5強</div>
   <div class="row" data-shindo="5弱">5弱</div>
   <div class="row" data-shindo="4">4</div>
+</div>
+<div id="cancelOverlay">
+  <div class="cancelBox">
+    この緊急地震速報は<br>
+    取り消されました。
+  </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -390,6 +420,22 @@ async function fetchEEW(){
       document.getElementById("tsunamiBox").style.display = "none";
       document.getElementById("warnArea").style.display = "none";
       return; // 以降の処理を中断
+    }
+
+    const cancelOverlay = document.getElementById("cancelOverlay");
+
+    if(data.isCancel){
+      cancelOverlay.style.display = "flex";
+      if(marker && map.hasLayer(marker)) map.removeLayer(marker);
+      marker = null;
+      if(pCircle && map.hasLayer(pCircle)) map.removeLayer(pCircle);
+      pCircle = null;
+      if(sCircle && map.hasLayer(sCircle)) map.removeLayer(sCircle);
+      sCircle = null;
+      if(countLabel) countLabel.remove();
+      countLabel = null;
+    }else{
+      cancelOverlay.style.display = "none";
     }
 
     const newLat = data.Latitude;
