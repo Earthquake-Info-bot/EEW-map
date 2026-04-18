@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EEWマップ vT1.1.1</title>
+  <title>EEWマップ v1.1.1</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -400,7 +400,7 @@ async function fetchEEW(){
     announcedTime = new Date(data.AnnouncedTime.replace(/-/g,"/"));
     const elapsedSec = (new Date() - announcedTime) / 1000;
 
-    /*if(elapsedSec > 5*60 && data.isFinal){
+    if(elapsedSec > 5*60 && data.isFinal){
       // infoBoxに表示
       const infoBox = document.getElementById("infoBox");
       infoBox.innerHTML = "<b>緊急地震速報は<br>発表されていません。</b>";
@@ -421,7 +421,7 @@ async function fetchEEW(){
       document.getElementById("tsunamiBox").style.display = "none";
       document.getElementById("warnArea").style.display = "none";
       return; // 以降の処理を中断
-    }*/
+    }
 
     const cancelOverlay = document.getElementById("cancelOverlay");
 
