@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EEWマップ v1.1.3</title>
+  <title>tEEWマップ v1.2.1</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -175,7 +175,7 @@ L.tileLayer(
 ).addTo(map);
 
 //テストかどうかをここに入力！！！！！！！！！↓↓↓↓↓true or false
-let EEW_JSON_URL = "";  const isTest = false;
+let EEW_JSON_URL = "";  const isTest = true;
 
 if (isTest) {
   EEW_JSON_URL = "https://script.google.com/macros/s/AKfycbzgP8R7vowRFrefHbUIkAcGt4NFjJZcuVnnpVqIjpprlCA44PtTk7ffHs-f4HP8Yk8A/exec";
@@ -608,7 +608,7 @@ async function loadAndDrawGeoJSON(code, shindo) {
   // まだfetchしてないなら取得
   if (!geoCache[code]) {
     //const url = `https://geoshape.ex.nii.ac.jp/jma/resource/AreaForecastLocalE/20240520/${code}.geojson`;
-    const url = `https://earthquake-info-bot.github.io/EQmap/geojson/${code}.json`;
+    const url = `./geojson/${code}.json`;
     const res = await fetch(url);
     if (!res.ok) return;
 
