@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <title>[T]EEWマップ v1.2.3</title>
+  <title>EEWマップ v1.2.4</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -607,8 +607,8 @@ async function loadAndDrawGeoJSON(code, shindo) {
 
   // まだfetchしてないなら取得
   if (!geoCache[code]) {
-    const url = `https://geoshape.ex.nii.ac.jp/jma/resource/AreaForecastLocalE/20240520/${code}.geojson`;
-    //const url = `./geojson/${code}.json`;
+    //const url = `https://geoshape.ex.nii.ac.jp/jma/resource/AreaForecastLocalE/20240520/${code}.geojson`;
+    const url = `./geojson/${code}.json`;
     const res = await fetch(url);
     if (!res.ok) return;
 
