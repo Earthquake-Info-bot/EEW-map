@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <title>EEWマップ v1.2.3</title>
+  <title>[T]EEWマップ v1.2.3</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -174,7 +174,7 @@ L.tileLayer(
 ).addTo(map);
 
 //テストかどうかをここに入力！！！！！！！！！↓↓↓↓↓true or false
-let EEW_JSON_URL = "";  const isTest = false;
+let EEW_JSON_URL = "";  const isTest = true;
 
 if (isTest) {
   EEW_JSON_URL = "https://script.google.com/macros/s/AKfycbzgP8R7vowRFrefHbUIkAcGt4NFjJZcuVnnpVqIjpprlCA44PtTk7ffHs-f4HP8Yk8A/exec";
@@ -703,9 +703,10 @@ function updateInfoBox(data) {
     　Ｍ　<b>${accM}</b><br>
     <br>
     発表時刻 ${announce}<br>
-    NAFY緊急地震速報マップ(Wolfx API)<br>
-    ［注］P/S波は簡易モデルによる計算であり<br>
-    　　　実際と異なる場合があります。</span>
+    NAFY緊急地震速報マップ<br>
+    情報元：WolfxAPI／地図データ：気象庁<br></span>
+    <span style="font-size:12px">P/S波は簡易モデルによる計算であり、<br>
+    実際と異なる場合があります。</span>
   `;
 
   if (maxInt === "7") { bg = "rgba(180,0,104,0.9)"; tc = "#fff"; }
