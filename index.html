@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <title>EEWマップ v1.2.5</title>
+  <title>EEWマップ v1.3.1</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -180,7 +180,7 @@ if (isTest) {
   EEW_JSON_URL = "https://script.google.com/macros/s/AKfycbzgP8R7vowRFrefHbUIkAcGt4NFjJZcuVnnpVqIjpprlCA44PtTk7ffHs-f4HP8Yk8A/exec";
   alert("【試験中】\nテストデータを読み込んでいます。")
 } else {
-  EEW_JSON_URL = "https://api.wolfx.jp/jma_eew.json";
+  EEW_JSON_URL = "https://api.wolfx.jp/jma_eew.json?t="+Date.now();
 }
 
 const P_SPEED = 6.0; // km/s
