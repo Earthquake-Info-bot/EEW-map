@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <title>EEWマップ v1.3.2</title>
+  <title>EEWマップ v1.3.3</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -656,9 +656,9 @@ function updateInfoBox(data) {
   if (!data) return;
 
   //震源情報
-  const title = data.Title || "緊急地震速報";
+  const title = data.Title === "不明、未設定時、キャンセル時" ? "緊急地震速報（取消）" : (data.Title || "緊急地震速報");
   const plum = data.isAssumption ? "  /  PLUM報" : "";
-  const hypocenter = data.Hypocenter === "不明、未設定時、キャンセル時" ? "緊急地震速報（取消）" : (data.Hypocenter || "-") ;
+  const hypocenter = data.Hypocenter || "-";
   let lt = (data.Latitude != null) ? Math.abs(data.Latitude) : "--";
   let ln = (data.Longitude != null) ? Math.abs(data.Longitude) : "--";
   if (data.Latitude > 0) lt = "N" + lt;
