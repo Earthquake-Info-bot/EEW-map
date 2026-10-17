@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <title>EEWマップ v1.3.1</title>
+  <title>EEWマップ v1.3.2</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -169,7 +169,7 @@
 <script>
 const map = L.map("map").setView([36.0, 138.0], 5);
 L.tileLayer(
-  "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+  "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=cb1_2ynh_1_16d52515d038cc8c1016b3b0",
   { attribution: '&copy; OpenStreetMap contributors &copy; CARTO', maxZoom:8 }
 ).addTo(map);
 
@@ -435,6 +435,7 @@ async function fetchEEW(){
       sCircle = null;
       if(countLabel) countLabel.remove();
       countLabel = null;
+      return;
     }else{
       cancelOverlay.style.display = "none";
     }
@@ -657,7 +658,7 @@ function updateInfoBox(data) {
   //震源情報
   const title = data.Title || "緊急地震速報";
   const plum = data.isAssumption ? "  /  PLUM報" : "";
-  const hypocenter = data.Hypocenter || "-";
+  const hypocenter = data.Hypocenter === "不明、未設定時、キャンセル時" ? "緊急地震速報（取消）" : (data.Hypocenter || "-") ;
   let lt = (data.Latitude != null) ? Math.abs(data.Latitude) : "--";
   let ln = (data.Longitude != null) ? Math.abs(data.Longitude) : "--";
   if (data.Latitude > 0) lt = "N" + lt;
