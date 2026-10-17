@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <title>EEWマップ v1.3.3</title>
+  <title>EEWマップ v1.4.1</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
@@ -435,6 +435,7 @@ async function fetchEEW(){
       sCircle = null;
       if(countLabel) countLabel.remove();
       countLabel = null;
+      updateInfoBox(data);
       return;
     }else{
       cancelOverlay.style.display = "none";
